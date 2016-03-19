@@ -60,6 +60,7 @@ public class ForecastFragment extends Fragment implements LoaderManager.LoaderCa
     static final int COL_COORD_LONG = 8;
 
     private ForecastAdapter mForecastAdapter;
+    private View mRootView;
 
     /**
      * A callback interface that all activities containing this fragment must
@@ -101,18 +102,12 @@ public class ForecastFragment extends Fragment implements LoaderManager.LoaderCa
         return super.onOptionsItemSelected(item);
     }
 
-    @Override
-    public View onCreateView(LayoutInflater inflater, ViewGroup container,
-                             Bundle savedInstanceState) {
-        // The CursorAdapter will take data from our cursor and populate the ListView.
-        mForecastAdapter = new ForecastAdapter(getActivity(), null, 0);
-
-        View rootView = inflater.inflate(R.layout.fragment_main, container, false);
+    private void gotWeather(Cursor cursor) {
+        mForecastAdapter = new ForecastAdapter(getActivity(), cursor, 0);
 
         // Get a reference to the ListView, and attach this adapter to it.
-        ListView listView = (ListView) rootView.findViewById(R.id.listview_forecast);
+        ListView listView = (ListView) mRootView.findViewById(R.id.listview_forecast);
         listView.setAdapter(mForecastAdapter);
-
         // We'll call our MainActivity
         listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
 
@@ -130,7 +125,16 @@ public class ForecastFragment extends Fragment implements LoaderManager.LoaderCa
                 }
             }
         });
-        return rootView;
+
+        mForecastAdapter.swapCursor(cursor);
+    }
+
+    @Override
+    public View onCreateView(LayoutInflater inflater, ViewGroup container,
+                             Bundle savedInstanceState) {
+        // The CursorAdapter will take data from our cursor and populate the ListView.
+        mRootView = inflater.inflate(R.layout.fragment_main, container, false);
+        return mRootView;
     }
 
     @Override
@@ -170,7 +174,8 @@ public class ForecastFragment extends Fragment implements LoaderManager.LoaderCa
 
     @Override
     public void onLoadFinished(Loader<Cursor> cursorLoader, Cursor cursor) {
-        mForecastAdapter.swapCursor(cursor);
+        gotWeather(cursor);
+
     }
 
     @Override
