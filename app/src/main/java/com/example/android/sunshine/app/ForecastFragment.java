@@ -27,6 +27,11 @@ import com.example.android.sunshine.app.data.WeatherContract;
 public class ForecastFragment extends Fragment implements LoaderManager.LoaderCallbacks<Cursor> {
 
     private static final int FORECAST_LOADER = 0;
+    private int mPosition = ListView.INVALID_POSITION;
+    private ListView mListView;
+    private static final String SELECTED_KEY = "selected_position";
+    private boolean mUseTodayLayout;
+
     // For the forecast view we're showing only a small subset of the stored data.
     // Specify the columns we need.
     private static final String[] FORECAST_COLUMNS = {
@@ -106,13 +111,14 @@ public class ForecastFragment extends Fragment implements LoaderManager.LoaderCa
         mForecastAdapter = new ForecastAdapter(getActivity(), cursor, 0);
 
         // Get a reference to the ListView, and attach this adapter to it.
-        ListView listView = (ListView) mRootView.findViewById(R.id.listview_forecast);
-        listView.setAdapter(mForecastAdapter);
+        mListView = (ListView) mRootView.findViewById(R.id.listview_forecast);
+        mListView.setAdapter(mForecastAdapter);
         // We'll call our MainActivity
-        listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+        mListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
 
             @Override
             public void onItemClick(AdapterView<?> adapterView, View view, int position, long l) {
+                mPosition = position;
                 // CursorAdapter returns a cursor at the correct position for getItem(), or null
                 // if it cannot seek to that position.
                 Cursor cursor = (Cursor) adapterView.getItemAtPosition(position);
@@ -123,10 +129,26 @@ public class ForecastFragment extends Fragment implements LoaderManager.LoaderCa
                                     locationSetting, cursor.getLong(COL_WEATHER_DATE)
                             ));
                 }
+//                mPosition = position;
             }
         });
 
         mForecastAdapter.swapCursor(cursor);
+        if (mPosition != ListView.INVALID_POSITION) {
+            // If we don't need to restart the loader, and there's a desired position to restore
+            // to, do so now.
+//            mListView.smoothScrollToPosition(mPosition);
+            mListView.setSelection(mPosition);
+        }
+        mForecastAdapter.setUseTodayLayout(mUseTodayLayout);
+    }
+
+    @Override
+    public  void onSaveInstanceState(Bundle savedInstanceState) {
+        if (mPosition != ListView.INVALID_POSITION) {
+            savedInstanceState.putInt(SELECTED_KEY, mPosition);
+        }
+        super.onSaveInstanceState(savedInstanceState);
     }
 
     @Override
@@ -134,6 +156,12 @@ public class ForecastFragment extends Fragment implements LoaderManager.LoaderCa
                              Bundle savedInstanceState) {
         // The CursorAdapter will take data from our cursor and populate the ListView.
         mRootView = inflater.inflate(R.layout.fragment_main, container, false);
+
+        if (savedInstanceState != null && savedInstanceState.containsKey(SELECTED_KEY)) {
+            // The listview probably hasn't even been populated yet.  Actually perform the
+            // swapout in onLoadFinished.
+            mPosition = savedInstanceState.getInt(SELECTED_KEY);
+        }
         return mRootView;
     }
 
@@ -157,29 +185,43 @@ public class ForecastFragment extends Fragment implements LoaderManager.LoaderCa
 
     @Override
     public Loader<Cursor> onCreateLoader(int i, Bundle bundle) {
-        String locationSetting = Utility.getPreferredLocation(getActivity());
-
         // Sort order:  Ascending, by date.
         String sortOrder = WeatherContract.WeatherEntry.COLUMN_DATE + " ASC";
+        String locationSetting = Utility.getPreferredLocation(getActivity());
         Uri weatherForLocationUri = WeatherContract.WeatherEntry.buildWeatherLocationWithStartDate(
                 locationSetting, System.currentTimeMillis());
 
-        return new CursorLoader(getActivity(),
+
+
+        CursorLoader cur =  new CursorLoader(getActivity(),
                 weatherForLocationUri,
                 FORECAST_COLUMNS,
                 null,
                 null,
                 sortOrder);
+        return  cur;
     }
 
     @Override
     public void onLoadFinished(Loader<Cursor> cursorLoader, Cursor cursor) {
         gotWeather(cursor);
-
+//        if (mPosition != ListView.INVALID_POSITION) {
+//            // If we don't need to restart the loader, and there's a desired position to restore
+//            // to, do so now.
+//            mListView.smoothScrollToPosition(mPosition);
+//        }
     }
 
     @Override
-    public void onLoaderReset(Loader<Cursor> cursorLoader) {
+//    public void onLoaderReset(Loader<Cursor> cursorLoader) {
+    public void onLoaderReset(Loader<Cursor> loader) {
         mForecastAdapter.swapCursor(null);
+    }
+
+    public void setUseTodayLayout(boolean useTodayLayout) {
+        mUseTodayLayout = useTodayLayout;
+        if (mForecastAdapter != null) {
+             mForecastAdapter.setUseTodayLayout(mUseTodayLayout);
+        }
     }
 }
